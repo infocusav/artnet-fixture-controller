@@ -1,0 +1,56 @@
+name: Build SD card image
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release to build, such as v1.0.0"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      BASE_URL: https://downloads.raspberrypi.com/raspios_lite_arm64_latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download and verify Raspberry Pi OS Lite
+        run: |
+          image_url="$(curl -fsSLI -o /dev/null -w '%{url_effective}' "$BASE_URL")"
+          echo "Base image: $image_url"
+          curl -fsSL -o base.img.xz "$image_url"
+          expected="$(curl -fsSL "$image_url.sha256" | cut -d' ' -f1)"
+          echo "$expected  base.img.xz" | sha256sum --check
+          echo "BASE_IMAGE=$(basename "$image_url")" >> "$GITHUB_ENV"
+
+      - name: Unpack the image
+        run: xz --decompress base.img.xz
+
+      - name: Add the controller
+        run: |
+          chmod +x install.sh scripts/*.sh
+          sudo scripts/build-image.sh base.img
+
+      - name: Compress and checksum
+        run: |
+          name="artnet-fixture-controller-$TAG.img"
+          mv base.img "$name"
+          xz -T0 -6 "$name"
+          sha256sum "$name.xz" > "$name.xz.sha256"
+          echo "IMAGE=$name.xz" >> "$GITHUB_ENV"
+
+      - name: Publish to the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$TAG" > /dev/null 2>&1 || gh release create "$TAG" \
+            --title "$TAG" \
+            --notes "SD card image, built from $BASE_IMAGE. See docs/INSTALL.md for how to flash it."
+          gh release upload "$TAG" "$IMAGE" "$IMAGE.sha256" --clobber

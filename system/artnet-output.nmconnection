@@ -1,0 +1,13 @@
+[connection]
+id=artnet-output
+type=ethernet
+interface-name=eth0
+autoconnect=true
+autoconnect-priority=100
+
+[ipv4]
+method=manual
+address1=2.0.0.100/8
+
+[ipv6]
+method=link-local

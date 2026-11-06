@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+show.json
+show.backup.json
+*.tmp
+*.img
+*.img.xz

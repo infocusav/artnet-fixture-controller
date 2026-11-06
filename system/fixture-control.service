@@ -1,0 +1,14 @@
+[Unit]
+Description=Art-Net fixture controller
+After=network.target
+
+[Service]
+# A separate, unprivileged user is created by systemd, so the image needs no login account.
+DynamicUser=yes
+StateDirectory=fixture-control
+ExecStart=/usr/bin/python3 /opt/fixture-control/fixture_control.py --autostart --show /var/lib/fixture-control/show.json
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
